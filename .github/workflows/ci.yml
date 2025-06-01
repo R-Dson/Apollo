@@ -77,7 +77,16 @@ jobs:
             libayatana-appindicator3-dev \
             libnotify-dev \
             libevdev-dev \
-            libxcb-xfixes0-dev
+            libxcb-xfixes0-dev \
+            libgbm-dev \
+            libnuma-dev \
+            libpulse-dev \
+            libx11-dev \
+            libxcb-shm0-dev \
+            libxcb1-dev \
+            libxrandr-dev \
+            libxtst-dev \
+            libudev-dev
 
       - name: Configure Build
         run: |
