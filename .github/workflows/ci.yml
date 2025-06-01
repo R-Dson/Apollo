@@ -76,7 +76,8 @@ jobs:
             libva-drm2 \
             libayatana-appindicator3-dev \
             libnotify-dev \
-            libevdev-dev
+            libevdev-dev \
+            libxcb-xfixes0-dev
 
       - name: Configure Build
         run: |
