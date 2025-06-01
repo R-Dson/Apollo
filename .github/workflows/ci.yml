@@ -73,9 +73,7 @@ jobs:
             libminiupnpc-dev \
             libcap-dev \
             libva-dev \
-            libva-drm-dev
-            # --- !!! REVIEW AND ADD any other specific libraries Apollo requires here !!! ---
-            # Example: libva-dev if using VA-API directly
+            libva-drm2
 
       - name: Configure Build
         run: |
