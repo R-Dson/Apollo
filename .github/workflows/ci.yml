@@ -111,7 +111,7 @@ jobs:
         run: |
           mkdir -p artifacts
           # !!! VERIFY this executable name and path after compilation !!!
-          EXECUTABLE_NAME="apollo"
+          EXECUTABLE_NAME="sunshine"
           EXECUTABLE_PATH="build/${EXECUTABLE_NAME}" # Assumes executable is in the root of the build dir
 
           if [ ! -f "${EXECUTABLE_PATH}" ]; then
