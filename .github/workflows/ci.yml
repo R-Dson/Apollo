@@ -92,12 +92,20 @@ jobs:
         run: |
           mkdir build
           cmake -B build -G Ninja -S . \
-            -DCMAKE_BUILD_TYPE=Release -DSUNSHINE_ENABLE_CUDA=OFF
+            -DCMAKE_BUILD_TYPE=Release -DSUNSHINE_ENABLE_CUDA=OFF -DCMAKE_BUILD_TYPE=Release -DSUNSHINE_ENABLE_WAYLAND=ON -DSUNSHINE_ENABLE_X11=ON-DSUNSHINE_ENABLE_DRM=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DSUNSHINE_BUILD_APPIMAGE=OFF
             # If Apollo's CMake can take a version, you could pass ${{ steps.version_info.outputs.VERSION_TAG }}
             # Example: -DAPOLLO_VERSION="${{ steps.version_info.outputs.VERSION_TAG }}"
 
+      - name: Show CMake Logs
+        if: always() # Run even if previous steps fail
+        run: |
+          echo "--- CMakeOutput.log ---"
+          cat build/CMakeFiles/CMakeOutput.log || echo "CMakeOutput.log not found"
+          echo "--- CMakeError.log ---"
+          cat build/CMakeFiles/CMakeError.log || echo "CMakeError.log not found"
+
       - name: Compile Apollo
-        run: ninja -C build
+        run: ninja -C build -v
 
       - name: Prepare Artifact
         run: |
