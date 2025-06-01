@@ -1,6 +1,6 @@
 name: CI Native Build
 permissions:
-  contents: read # Default permission for all jobs
+  contents: read
 
 on:
   pull_request:
