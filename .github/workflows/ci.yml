@@ -73,7 +73,9 @@ jobs:
             libminiupnpc-dev \
             libcap-dev \
             libva-dev \
-            libva-drm2
+            libva-drm2 \
+            libayatana-appindicator3-dev \
+            libnotify-dev
 
       - name: Configure Build
         run: |
