@@ -69,7 +69,8 @@ jobs:
             libxcb-dri3-dev \
             libxfixes-dev \
             libopus-dev \
-            nlohmann-json3-dev
+            nlohmann-json3-dev \
+            libminiupnpc-dev # Added miniupnpc development package
             # --- !!! REVIEW AND ADD any other specific libraries Apollo requires here !!! ---
             # Example: libva-dev if using VA-API directly
 
@@ -122,5 +123,3 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }} # Mark as pre-release if tag has e.g. -beta, -alpha
           # Ensure the files glob matches the naming convention from "Prepare Artifact" step for the tagged release
           files: "artifacts/*${{ github.ref_name }}*-linux-x86_64"
-
-    
