@@ -1,0 +1,156 @@
+name: CI Native Build
+permissions:
+  contents: read # Default permission for all jobs
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  setup_release:
+    name: Setup Release Info
+    outputs:
+      publish_release: ${{ steps.setup_release.outputs.publish_release }}
+      release_body: ${{ steps.setup_release.outputs.release_body }}
+      release_commit: ${{ steps.setup_release.outputs.release_commit }}
+      release_generate_release_notes: ${{ steps.setup_release.outputs.release_generate_release_notes }}
+      release_tag: ${{ steps.setup_release.outputs.release_tag }}
+      release_version: ${{ steps.setup_release.outputs.release_version }}
+    permissions:
+      contents: write # setup-release-action may need write to check merge commit details for accurate versioning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for version determination by setup-release
+
+      - name: Setup Release Action
+        id: setup_release
+        uses: LizardByte/setup-release-action@v2025.426.225 # Check for latest version of this action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  build_linux_native:
+    name: Build Linux Native Binary
+    needs: setup_release
+    runs-on: ubuntu-22.04 # Using a specific LTS version for consistency
+    permissions:
+      contents: write # Needed for create-release-action to create releases and upload assets
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive # If Apollo uses git submodules
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            # --- !!! REVIEW AND ADJUST THE FOLLOWING LIBRARIES FOR APOLLO !!! ---
+            # Common libraries for a C++ application:
+            libssl-dev \
+            libcurl4-openssl-dev \
+            # For GUI (Sunshine/Apollo are GUI applications):
+            libdrm-dev \
+            libgl-dev \
+            libwayland-dev \
+            libx11-xcb-dev \
+            libxcb-dri3-dev \
+            libxfixes-dev \
+            # Audio (Opus is common for game streaming):
+            libopus-dev \
+            # JSON (Example: nlohmann-json)
+            nlohmann-json3-dev \
+            # --- Add any other specific libraries Apollo requires here ---
+            # Example: libva-dev if using VA-API directly
+
+      - name: Configure Build
+        run: |
+          mkdir build
+          # If the Apollo project's CMakeLists.txt does NOT use specific -DAPOLLO_... variables
+          # for versioning, commit, or branch, then they are not needed here.
+          # Only include -D options that are actually processed by Apollo's CMakeLists.txt.
+          cmake -B build -G Ninja -S . \
+            -DCMAKE_BUILD_TYPE=Release
+            # Add any OTHER Apollo-specific CMake configuration options that ARE actually used here
+
+      - name: Compile Apollo
+        run: ninja -C build
+
+      - name: Prepare Artifact
+        run: |
+          mkdir -p artifacts
+          # !!! VERIFY the executable name and its location after compilation !!!
+          # Common locations: build/apollo, build/src/apollo, build/bin/apollo
+          # Adjust EXECUTABLE_NAME and EXECUTABLE_PATH accordingly.
+          EXECUTABLE_NAME="apollo" # The name of your compiled executable
+          EXECUTABLE_PATH="build/${EXECUTABLE_NAME}" # The path to the compiled executable
+
+          if [ ! -f "${EXECUTABLE_PATH}" ]; then
+            echo "Error: Binary not found at ${EXECUTABLE_PATH}"
+            echo "Listing contents of build directory to help debug:"
+            ls -R build
+            exit 1
+          fi
+
+          chmod +x "${EXECUTABLE_PATH}"
+
+          # Determine the suffix for the artifact name
+          # For release builds, use the release tag.
+          # For other builds (like PRs or direct pushes not making a release), use a dev suffix.
+          release_tag="${{ needs.setup_release.outputs.release_tag }}"
+          if [ -n "$release_tag" ] && [ "${{ needs.setup_release.outputs.publish_release }}" == "true" ]; then
+            artifact_version_suffix="${release_tag}"
+          else
+            # Use a generic suffix for non-release builds, e.g., commit SHA
+            # GITHUB_SHA_SHORT is not directly available, so we take first 7 chars of GITHUB_SHA
+            commit_sha_short=$(echo $GITHUB_SHA | cut -c1-7)
+            artifact_version_suffix="dev-${commit_sha_short}"
+          fi
+
+          cp "${EXECUTABLE_PATH}" ./artifacts/${EXECUTABLE_NAME}-${artifact_version_suffix}-linux-x86_64
+          echo "Binary prepared: ./artifacts/${EXECUTABLE_NAME}-${artifact_version_suffix}-linux-x86_64"
+
+      - name: Upload Native Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-linux-native-binary # Name of the artifact zip file
+          path: artifacts/ # Path to the directory containing the binary
+          if-no-files-found: error # Fail the workflow if the artifact isn't found
+
+      - name: Create/Update GitHub Release
+        # This step runs only for pushes to the 'master' (or your main) branch
+        # AND if the setup_release job determined a release should be published.
+        if: needs.setup_release.outputs.publish_release == 'true' && github.event_name == 'push'
+        uses: LizardByte/create-release-action@v2025.426.1549 # Check for latest version
+        with:
+          # Use GH_BOT_TOKEN for releases attributed to a bot, otherwise defaults to github-actions[bot]
+          token: ${{ secrets.GH_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          tag_name: ${{ needs.setup_release.outputs.release_tag }}
+          release_name: "Apollo ${{ needs.setup_release.outputs.release_tag }}"
+          body: ${{ needs.setup_release.outputs.release_body }}
+          draft: false
+          # Mark as pre-release if the tag contains a hyphen (e.g., v1.0.0-beta, v0.5-alpha)
+          prerelease: ${{ contains(needs.setup_release.outputs.release_tag, '-') }}
+          generate_release_notes: ${{ needs.setup_release.outputs.release_generate_release_notes }}
+          allowUpdates: true # Allows updating an existing release with the same tag
+          # Ensure the artifacts glob matches the naming convention from "Prepare Artifact" step
+          # This will pick up the specific release-tagged artifact.
+          artifacts: "artifacts/*${{ needs.setup_release.outputs.release_tag }}*-linux-x86_64"
