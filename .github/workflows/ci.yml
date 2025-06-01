@@ -78,7 +78,7 @@ jobs:
         run: |
           mkdir build
           cmake -B build -G Ninja -S . \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release -DCUDA_FAIL_ON_MISSING=OFF
             # If Apollo's CMake can take a version, you could pass ${{ steps.version_info.outputs.VERSION_TAG }}
             # Example: -DAPOLLO_VERSION="${{ steps.version_info.outputs.VERSION_TAG }}"
 
