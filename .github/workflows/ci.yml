@@ -70,7 +70,8 @@ jobs:
             libxfixes-dev \
             libopus-dev \
             nlohmann-json3-dev \
-            libminiupnpc-dev # Added miniupnpc development package
+            libminiupnpc-dev \
+            libcap-dev
             # --- !!! REVIEW AND ADD any other specific libraries Apollo requires here !!! ---
             # Example: libva-dev if using VA-API directly
 
